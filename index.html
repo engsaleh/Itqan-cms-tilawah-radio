@@ -1,0 +1,70 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl" data-theme="dark">
+
+<head>
+  <meta charset="UTF-8" />
+  <title>راديو التلاوات</title>
+  <link rel="stylesheet" href="style.css" />
+  <script src="app.js" defer></script>
+</head>
+
+<body>
+  <main class="page">
+    <section class="radio-shell">
+      <header class="radio-header">
+        <div class="header-main">
+          <h1>راديو التلاوات</h1>
+          <p>محطة قرآنية مبنية على Itqan CMS.</p>
+        </div>
+        <button id="theme-toggle" class="theme-toggle" title="تبديل الوضع">
+          🌙
+        </button>
+      </header>
+
+      <div class="radio-body">
+        <aside class="right-panel">
+          <div class="field">
+            <label>الرواية</label>
+            <select id="riwayah-select"></select>
+          </div>
+
+          <div class="field">
+            <label>القارئ</label>
+            <select id="reciter-select"></select>
+          </div>
+
+          <!-- ✅ Station card بعد التبسيط -->
+          <div class="station-card">
+            <div class="station-line">
+              <span class="label">عدد السور:</span>
+              <span id="station-count">0</span>
+            </div>
+          </div>
+
+          <div class="player-card">
+            <div class="np-small-label">يتم التشغيل الآن</div>
+            <div class="np-main" id="now-surah">—</div>
+
+            <div class="controls-row">
+              <button id="radio-btn" class="primary" disabled>
+                ▶ تشغيل الراديو
+              </button>
+              <button id="pause-btn" class="ghost" disabled>
+                ⏸ إيقاف مؤقت
+              </button>
+            </div>
+
+            <audio id="audio"></audio>
+          </div>
+        </aside>
+
+        <section class="left-panel">
+          <h2>قائمة السور</h2>
+          <div id="surah-list" class="surah-list"></div>
+        </section>
+      </div>
+    </section>
+  </main>
+</body>
+
+</html>
