@@ -34,7 +34,28 @@ let index = -1;
 /* =========================
    API
 ========================= */
-const API = "https://api.cms.itqan.dev/developers-api";
+const API = "https://api.cms.itqan.dev";
+
+const DEFAULT_LANG = "ar";
+
+function getLang() {
+
+  return localStorage.getItem("lang") || DEFAULT_LANG;
+}
+
+async function apiGet(path) {
+  const r = await fetch(`${API}${path}`, {
+    headers: {
+      "Accept-Language": getLang(), // ar | en
+    },
+  });
+
+  if (!r.ok) {
+    const text = await r.text().catch(() => "");
+    throw new Error(`HTTP ${r.status} on ${path}\n${text}`);
+  }
+  return r.json();
+}
 
 /* =========================
    HELPERS
@@ -45,41 +66,44 @@ function updateControls() {
   pauseBtn.disabled = !ready;
 }
 
+function getName(obj) {
+
+  return obj?.name || "—";
+}
+
 /* =========================
    LOAD DATA
 ========================= */
 async function loadRiwayahs() {
-  const r = await fetch(`${API}/riwayahs/?page_size=100`);
-  const d = await r.json();
+  const d = await apiGet(`/riwayahs/?page_size=100`);
   riwayahSelect.innerHTML = `<option value="">اختر الرواية</option>`;
-  d.results.forEach(x =>
-    riwayahSelect.innerHTML += `<option value="${x.id}">${x.name_ar}</option>`
-  );
+  d.results.forEach((x) => {
+    riwayahSelect.innerHTML += `<option value="${x.id}">${getName(x)}</option>`;
+  });
 }
 
 async function loadReciters() {
-  const r = await fetch(`${API}/reciters/?page_size=100`);
-  const d = await r.json();
+  const d = await apiGet(`/reciters/?page_size=100`);
   reciterSelect.innerHTML = `<option value="">اختر القارئ</option>`;
-  d.results.forEach(x =>
-    reciterSelect.innerHTML += `<option value="${x.id}">${x.name_ar}</option>`
-  );
+  d.results.forEach((x) => {
+    reciterSelect.innerHTML += `<option value="${x.id}">${getName(x)}</option>`;
+  });
 }
 
 /* =========================
    PAGINATION
 ========================= */
-async function fetchAllTracks(assetId) {
+async function fetchAllTracks(recitationId) {
   let page = 1;
   let all = [];
   let total = Infinity;
 
   while (all.length < total) {
-    const r = await fetch(`${API}/recitations/${assetId}/?page=${page}`);
-    const d = await r.json();
-    all.push(...d.results);
-    total = d.count;
+    const d = await apiGet(`/recitations/${recitationId}/?page=${page}`);
+    all.push(...(d.results || []));
+    total = Number.isFinite(d.count) ? d.count : all.length;
     page++;
+    if (!d.results || d.results.length === 0) break;
   }
   return all;
 }
@@ -94,18 +118,20 @@ async function buildStation() {
   index = -1;
   updateControls();
 
-  const r = await fetch(
-    `${API}/recitations/?riwayah_id=${riwayahSelect.value}&reciter_id=${reciterSelect.value}`
+  const d = await apiGet(
+    `/recitations/?riwayah_id=${encodeURIComponent(
+      riwayahSelect.value
+    )}&reciter_id=${encodeURIComponent(reciterSelect.value)}`
   );
-  const d = await r.json();
-  const assetId = d.results[0]?.id;
-  if (!assetId) return;
 
-  const tracks = await fetchAllTracks(assetId);
+  const recitationId = d.results?.[0]?.id;
+  if (!recitationId) return;
 
-  playlist = tracks
-    .filter(t => t.audio_url && t.surah_number)
-    .sort((a, b) => a.surah_number - b.surah_number);
+  const tracks = await fetchAllTracks(recitationId);
+
+  playlist = (tracks || [])
+    .filter((t) => t.audio_url && (t.surah_number || t.surah))
+    .sort((a, b) => (a.surah_number || 0) - (b.surah_number || 0));
 
   stationCount.textContent = playlist.length;
   renderSurahs();
@@ -117,10 +143,15 @@ async function buildStation() {
 ========================= */
 function renderSurahs() {
   surahListEl.innerHTML = "";
+
   playlist.forEach((t, i) => {
     const div = document.createElement("div");
     div.className = "surah-item";
-    div.textContent = `${t.surah_number}. ${t.surah_name_ar}`;
+
+    const num = t.surah_number ?? "—";
+    const name = t.surah_name ?? "—"; // 
+
+    div.textContent = `${num}. ${name}`;
     div.onclick = () => play(i);
     surahListEl.appendChild(div);
   });
@@ -128,16 +159,17 @@ function renderSurahs() {
 
 function play(i) {
   index = i;
-  audio.src = playlist[i].audio_url;
-  nowSurahEl.textContent =
-    `سورة ${playlist[i].surah_name_ar}`;
+  const t = playlist[i];
+
+  audio.src = t.audio_url;
+  nowSurahEl.textContent = `سورة ${t.surah_name ?? "—"}`;
   audio.play();
 }
 
 /* =========================
    EVENTS
 ========================= */
-radioBtn.onclick = () => index === -1 ? play(0) : audio.play();
+radioBtn.onclick = () => (index === -1 ? play(0) : audio.play());
 pauseBtn.onclick = () => audio.pause();
 audio.onended = () => index + 1 < playlist.length && play(index + 1);
 
